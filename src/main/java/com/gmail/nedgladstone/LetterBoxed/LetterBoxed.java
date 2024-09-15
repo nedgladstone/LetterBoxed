@@ -263,6 +263,10 @@ public class LetterBoxed {
             }
         }
 
+        for (char ch = 'A'; ch <= 'Z'; ++ch) {
+            System.out.printf("%c: %d\n", ch, this.letterSides[ch - 'A']);
+        }
+
         this.dictionary = new Dictionary();
 
         readDictionary("src/main/resources/dict.txt");
@@ -339,22 +343,19 @@ public class LetterBoxed {
 
     private boolean isValidWord(String word) {
         if (word.length() < 3) {
-            System.out.printf("Not adding %s because it is too short\n", word);
+            // System.out.printf("Not adding %s because it is too short\n", word);
             return false;
         }
-        int prevSideNum = 
-        if (! word.matches("^[" + validLetters + "]+$")) {
-            // System.out.printf("Not adding %s because it contains characters other than %s\n", word, validLetters);
-            return;
+        int prevSideNum = -1;
+        for (int c = 0; c < word.length(); ++c) {
+            int sideNum = letterSides[word.charAt(c) - 'A'];
+            if ((sideNum == -1) || (sideNum == prevSideNum)) {
+                return false;
+            }
+            prevSideNum = sideNum;
         }
-        if (word.matches("\\b.*([A-Za-z])\\1.*\\b")) {
-            System.out.printf("Not adding %s because it contains a double letter\n", word);
-            return;
-        }
-        for (int i = 0; i < word.length(); ++i) {
-
-        }
-
+        // System.out.printf("Adding %s\n", word);
+        return true;
     }
 
     private static final int MAX_NUM_SOLUTIONS = 20;
