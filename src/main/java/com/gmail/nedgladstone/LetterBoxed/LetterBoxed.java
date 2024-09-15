@@ -180,15 +180,10 @@ public class LetterBoxed {
             final TrieNode node;
         }
 
-        public Dictionary(String validLetters) {
-            this.validLetters = validLetters;
+        public Dictionary() {
         }
 
         public void addWord(String word) {
-            if (! word.matches("^[" + validLetters + "]+$")) {
-                // System.out.printf("Not adding %s because it contains characters other than %s\n", word, validLetters);
-                return;
-            }
             TrieNode node = root;
             for (int i = 0; i < word.length(); ++i) {
                 final boolean isWord = (i == word.length() - 1);
@@ -252,17 +247,23 @@ public class LetterBoxed {
 
 
         private final TrieNode root = new TrieNode(false);
-
-        private final String validLetters;
     }
 
 
     public LetterBoxed(List<String> rawSides) {
         this.rawSides = rawSides;
 
-        String validLetters = String.join("", rawSides);
-        
-        this.dictionary = new Dictionary(validLetters);
+        for (char ch = 'A'; ch <= 'Z'; ++ch) {
+            this.letterSides[ch - 'A'] = -1;
+        }
+        for (int sideNum = 0; sideNum < rawSides.size(); ++sideNum) {
+            String side = rawSides.get(sideNum);
+            for (int c = 0; c < side.length(); ++c) {
+                this.letterSides[side.charAt(c) - 'A'] = sideNum;
+            }
+        }
+
+        this.dictionary = new Dictionary();
 
         readDictionary("src/main/resources/dict.txt");
         // dictionary.dumpWords(System.out);
@@ -330,15 +331,37 @@ public class LetterBoxed {
 
     private void readDictionary(String dictionaryPath) {
         try (Stream<String> lines = Files.lines(Paths.get(dictionaryPath))) {
-            lines.forEach(word -> dictionary.addWord(word));
+            lines.filter(word -> isValidWord(word)).forEach(word -> dictionary.addWord(word));
         } catch (IOException e) {
             System.err.println("Unable to read dictionary from file " + dictionaryPath);
         }
     }
 
+    private boolean isValidWord(String word) {
+        if (word.length() < 3) {
+            System.out.printf("Not adding %s because it is too short\n", word);
+            return false;
+        }
+        int prevSideNum = 
+        if (! word.matches("^[" + validLetters + "]+$")) {
+            // System.out.printf("Not adding %s because it contains characters other than %s\n", word, validLetters);
+            return;
+        }
+        if (word.matches("\\b.*([A-Za-z])\\1.*\\b")) {
+            System.out.printf("Not adding %s because it contains a double letter\n", word);
+            return;
+        }
+        for (int i = 0; i < word.length(); ++i) {
+
+        }
+
+    }
+
     private static final int MAX_NUM_SOLUTIONS = 20;
 
     private List<String> rawSides;
+
+    private int letterSides[] = new int[26];
 
     private Dictionary dictionary;
 
