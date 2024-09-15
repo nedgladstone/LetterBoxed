@@ -292,6 +292,7 @@ public class LetterBoxed {
             Side side = state.sides.get(s);
             for (int l = 0; l < side.letters.size(); ++l) {
                 Letter letter = side.letters.get(l);
+                System.out.printf("%c", letter.letter);
                 if (state.fragment.length() == 0) {
                     System.out.printf("Processing side %d, letter %s\n", s, letter);
                 }
@@ -299,6 +300,7 @@ public class LetterBoxed {
                 if ((state.words.size() > 0)
                         && (newFragment.equals(state.words.get(state.words.size() - 1)))) {
                     // no need to keep processing this fragment if we've just repeated the last word
+                    System.out.printf("<- duplicated word\n");
                     continue;
                 }
                 Dictionary.Cursor fragmentCursor = dictionary.checkFragment(newFragment);
@@ -306,14 +308,20 @@ public class LetterBoxed {
                     State newState = new State(state, s, l, false);
                     // System.out.println("Frag " + newFragment);
                     tryNext(newState);
+                } else {
+                    System.out.printf("*\n");
                 }
                 if (fragmentCursor.isValidWord()) {
                     State newState = new State(state, s, l, true);
                     if (newState.isComplete()) {
+                        System.out.printf("$");
                         addSolution(new Solution(newState.words));
                     } else {
                         if (newState.words.size() < maxNumWords) {
+                            System.out.printf("!");
                             tryNext(newState);
+                        } else {
+                            System.out.printf("<- max words\n");
                         }
                     }
                 }
