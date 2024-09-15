@@ -1,6 +1,5 @@
 package com.gmail.nedgladstone.LetterBoxed;
 
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.HashMap;

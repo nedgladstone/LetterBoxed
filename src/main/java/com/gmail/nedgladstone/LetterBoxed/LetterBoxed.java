@@ -1,22 +1,15 @@
 package com.gmail.nedgladstone.LetterBoxed;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class LetterBoxed {
@@ -35,221 +28,6 @@ public class LetterBoxed {
         letterBoxed.dumpSolutions(System.out);
     }
 
-    private static void displayUsage() {
-        System.err.println("Usage: LetterBoxed <north> <east> <south> <west>");
-    }
-
-
-    private static class Letter {
-        public Letter(char letter, boolean hasBeenUsed) {
-            this.letter = letter;
-            this.hasBeenUsed = hasBeenUsed;
-        }
-
-        public Letter(Letter other) {
-            this.letter = other.letter;
-            this.hasBeenUsed = other.hasBeenUsed;
-        }
-        
-        public String toString() {
-            return String.format("%c", (hasBeenUsed ? letter - 'A' + 'a' : letter)); 
-        }
-
-        public final char letter;
-        public final boolean hasBeenUsed;
-    }
-
-
-    private static class Side {
-        public Side(String rawLetters) {
-            this.letters = new ArrayList<Letter>();
-            rawLetters.chars().forEach(rl -> this.letters.add(new Letter((char)rl, false)));
-        }
-
-        public Side(Side other) {
-            this.letters = other.letters.stream().map(Letter::new).collect(Collectors.toList());
-        }
-
-        public void markLetterUsed(int letterIndex) {
-            letters.set(letterIndex, new Letter(letters.get(letterIndex).letter, true));
-        }
-
-        public String toString() {
-            StringBuilder outputBuilder = new StringBuilder();
-            letters.stream().forEach(l -> outputBuilder.append(l));
-            return outputBuilder.toString();
-        }
-
-        public final List<Letter> letters;
-    }
-
-
-    private static class State {
-        public State(List<String> rawSides) {
-            this.sides = new ArrayList<Side>();
-            rawSides.stream().forEach(rs -> this.sides.add(new Side(rs)));
-            this.lastSideUsedIndex = -1;
-            this.words = new ArrayList<>();
-            this.fragment = "";
-        }
-
-        public State(State other, int sideUsedIndex, int letterUsedIndex, boolean usedAsWord) {
-            this.sides = other.sides.stream().map(Side::new).collect(Collectors.toList());
-            Side sideUsed = this.sides.get(sideUsedIndex);
-            sideUsed.markLetterUsed(letterUsedIndex);
-            Letter letterUsed = sideUsed.letters.get(letterUsedIndex);
-            this.lastSideUsedIndex = sideUsedIndex;
-            this.words = new ArrayList<String>(other.words);
-            String newFragment = other.fragment + letterUsed.letter;
-            if (usedAsWord) {
-                this.words.add(newFragment);
-                this.fragment = "" + letterUsed.letter;
-            } else {
-                this.fragment = newFragment;
-            }
-        }
-
-        public boolean isComplete() {
-            return sides.stream().allMatch(s -> s.letters.stream().allMatch(l -> l.hasBeenUsed));
-        }
-
-        public String toString() {
-            StringBuilder outputBuilder = new StringBuilder();
-            outputBuilder.append("State: ");
-            sides.stream().forEach(s -> outputBuilder.append(s).append(" "));
-            outputBuilder.append("\n");
-            return outputBuilder.toString();
-        }
-
-        public final List<Side> sides;
-        public final int lastSideUsedIndex;
-        public final List<String> words;
-        public final String fragment;
-    }
-
-
-    private static class Solution implements Comparable<Solution> {
-        public List<String> words;
-
-        public Solution(List<String> words) {
-            this.words = new ArrayList<String>(words);
-        }
-
-        // Best solutions have fewer words
-        // For two solutions with the same number of words, the better solution has fewer letters
-        public int compareTo(Solution other) {
-            int wordCountDifference = other.words.size() - this.words.size();
-            if (wordCountDifference != 0) {
-                return wordCountDifference;
-            }
-
-            int letterCountDifference = other.getLetterCount() - this.getLetterCount();
-            if (letterCountDifference != 0) {
-                return letterCountDifference;
-            };
-            return other.words.hashCode() - this.words.hashCode();
-        }
-
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            words.stream().forEach(w -> sb.append(w).append(" "));
-            sb.append(String.format("[%d, %d]", words.size(), getLetterCount()));
-            return sb.toString();
-        }
-
-        private int getLetterCount() {
-            return words.stream().mapToInt(String::length).sum();
-        }
-    }
-
-
-    private static class Dictionary {
-        public static class Cursor {
-            Cursor(TrieNode node) {
-                this.node = node;
-            }
-
-            public boolean isValidFragment() {
-                return node != null;
-            }
-
-            public boolean isValidWord() {
-                return node != null && node.isWord;
-            }
-
-            final TrieNode node;
-        }
-
-        public Dictionary() {
-        }
-
-        public void addWord(String word) {
-            TrieNode node = root;
-            for (int i = 0; i < word.length(); ++i) {
-                final boolean isWord = (i == word.length() - 1);
-                node = node.children.computeIfAbsent(word.charAt(i), n -> new TrieNode(isWord));
-            }
-        }
-
-        public Cursor checkFragment(String fragment) {
-            TrieNode node = root;
-            for (int i = 0; i < fragment.length(); ++i) {
-                node = node.children.get(fragment.charAt(i));
-                if (node == null) {
-                    break;
-                }
-            }
-            return new Cursor(node);
-        }
-
-        public Cursor getCursor() {
-            return new Cursor(root);
-        }
-
-        public Cursor advanceCursor(Cursor cursor, char nextChar) {
-            return new Cursor(cursor.node.children.get(nextChar));
-        }
-
-        public void dumpWords(PrintStream out) {
-            dumpTrieWordsNode(root, new StringBuilder(), out);
-        }
-
-        public void dumpStructure(PrintStream out) {
-            dumpTrieStructureNode(root, 0, out);
-        }
-        
-        private static class TrieNode {
-            TrieNode(boolean isWord) {
-                this.isWord = isWord;
-            }
-
-            final boolean isWord;
-            final Map<Character, TrieNode> children = new HashMap<>();
-        }
-
-        private static void dumpTrieWordsNode(TrieNode trie, StringBuilder partialWord, PrintStream out) {
-            if (trie.isWord) {
-                out.println(partialWord);
-            }
-            trie.children.entrySet().stream().forEach(e -> {
-                StringBuilder sb = new StringBuilder(partialWord);
-                sb.append(e.getKey());
-                dumpTrieWordsNode(e.getValue(), sb, out);
-            });
-        }
-
-        private static void dumpTrieStructureNode(TrieNode trie, int levels, PrintStream out) {
-            trie.children.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(e -> {
-                out.printf("%s%c%c\n", "-".repeat(levels), e.getKey(), (e.getValue().isWord ? '*' : ' '));
-                dumpTrieStructureNode(e.getValue(), levels + 1, out);
-            });
-        }
-
-
-        private final TrieNode root = new TrieNode(false);
-    }
-
-
     public LetterBoxed(List<String> rawSides) {
         this.rawSides = rawSides;
 
@@ -263,28 +41,26 @@ public class LetterBoxed {
             }
         }
 
-        for (char ch = 'A'; ch <= 'Z'; ++ch) {
-            System.out.printf("%c: %d\n", ch, this.letterSides[ch - 'A']);
-        }
-
         this.dictionary = new Dictionary();
 
         readDictionary("src/main/resources/dict.txt");
-        // dictionary.dumpWords(System.out);
-        // dictionary.dumpStructure(System.out);
+        dictionary.dumpWords(System.out);
+        System.out.println();
+        dictionary.dumpStructure(System.out);
+        System.out.println();
     }
 
     public void findTopSolutions() {
         State state = new State(rawSides);
-        tryNext(state);
+        tryNext(state, 0);
     }
 
     public void dumpSolutions(PrintStream out) {
-        out.println("Solutions:");
+        out.printf("\nTop solutions: (%d fragments tested)\n", fragmentsTested);
         solutions.stream().sorted(Comparator.reverseOrder()).forEach(s -> out.println(s)); 
     }
 
-    private void tryNext(State state) {
+    private void tryNext(State state, int depth) {
         for (int s = 0; s < state.sides.size(); ++s) {
             if (state.lastSideUsedIndex == s) {
                 continue;
@@ -292,36 +68,36 @@ public class LetterBoxed {
             Side side = state.sides.get(s);
             for (int l = 0; l < side.letters.size(); ++l) {
                 Letter letter = side.letters.get(l);
-                System.out.printf("%c", letter.letter);
                 if (state.fragment.length() == 0) {
-                    System.out.printf("Processing side %d, letter %s\n", s, letter);
+                    System.out.printf("Processing side %d, letter %s, fragments tested %d\n", s, letter, fragmentsTested);
                 }
                 String newFragment = state.fragment + letter.letter;
+                ++fragmentsTested;
+                // System.out.printf("%sNew fragment: %s, State: %s\n", " ".repeat(depth + 1), newFragment, state.toString());
                 if ((state.words.size() > 0)
                         && (newFragment.equals(state.words.get(state.words.size() - 1)))) {
                     // no need to keep processing this fragment if we've just repeated the last word
-                    System.out.printf("<- duplicated word\n");
+                    // System.out.printf("%sDuplicated word %s\n", " ".repeat(depth + 2), newFragment);
                     continue;
                 }
-                Dictionary.Cursor fragmentCursor = dictionary.checkFragment(newFragment);
-                if (fragmentCursor.isValidFragment()) {
+                Cursor fragmentCursor = dictionary.checkFragment(newFragment);
+                if (fragmentCursor.isValidPrefix()) {
                     State newState = new State(state, s, l, false);
-                    // System.out.println("Frag " + newFragment);
-                    tryNext(newState);
+                    tryNext(newState, depth + 1);
                 } else {
-                    System.out.printf("*\n");
+                    // System.out.printf("%sNot valid prefix\n", " ".repeat(depth + 2));
                 }
                 if (fragmentCursor.isValidWord()) {
                     State newState = new State(state, s, l, true);
                     if (newState.isComplete()) {
-                        System.out.printf("$");
+                        System.out.printf("Solution: %s\n", newState.words.toString());
                         addSolution(new Solution(newState.words));
                     } else {
                         if (newState.words.size() < maxNumWords) {
-                            System.out.printf("!");
-                            tryNext(newState);
+                            // System.out.printf("%s%s is a Word! New state: %s\n", " ".repeat(depth + 1), newFragment, newState.toString());
+                            tryNext(newState, depth + 1);
                         } else {
-                            System.out.printf("<- max words\n");
+                            // System.out.printf("%s%s is a word, but we're at max words. New state: %s\n", " ".repeat(depth + 2), newFragment, newState.toString());
                         }
                     }
                 }
@@ -342,11 +118,13 @@ public class LetterBoxed {
     }
 
     private void readDictionary(String dictionaryPath) {
+        System.out.println("Building dictionary...");
         try (Stream<String> lines = Files.lines(Paths.get(dictionaryPath))) {
             lines.filter(word -> isValidWord(word)).forEach(word -> dictionary.addWord(word));
         } catch (IOException e) {
             System.err.println("Unable to read dictionary from file " + dictionaryPath);
         }
+        System.out.println();
     }
 
     private boolean isValidWord(String word) {
@@ -354,17 +132,29 @@ public class LetterBoxed {
             // System.out.printf("Not adding %s because it is too short\n", word);
             return false;
         }
+
+        String lettersToFind = rawSides.stream().collect(StringBuilder::new, (x, y) -> x.append(y), (a, b) -> a.append(b)).toString();
         int prevSideNum = -1;
         for (int c = 0; c < word.length(); ++c) {
-            int sideNum = letterSides[word.charAt(c) - 'A'];
+            char letter = word.charAt(c);
+            int sideNum = letterSides[letter - 'A'];
             if ((sideNum == -1) || (sideNum == prevSideNum)) {
                 return false;
             }
+            lettersToFind = lettersToFind.replaceFirst(String.valueOf(letter), "");
             prevSideNum = sideNum;
         }
         // System.out.printf("Adding %s\n", word);
+        if (lettersToFind.length() == 0) {
+            System.out.printf("%s is a one-word solution!\n", word);
+        }
         return true;
     }
+
+    private static void displayUsage() {
+        System.err.println("Usage: LetterBoxed <north> <east> <south> <west>");
+    }
+
 
     private static final int MAX_NUM_SOLUTIONS = 20;
 
@@ -377,4 +167,6 @@ public class LetterBoxed {
     private SortedSet<Solution> solutions = new TreeSet<>();
 
     private int maxNumWords = 4;
+
+    int fragmentsTested = 0;
 }
